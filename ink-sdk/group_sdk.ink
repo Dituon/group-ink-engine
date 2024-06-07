@@ -1,14 +1,6 @@
 VAR SDK_VERSION = 2
 
 /**
-注册插件指令，每个故事只能注册一次。
-*/
-EXTERNAL register_command(command)
-
-===function register_command(command)===
-~ return true
-
-/**
 在运行时会被动态替换为当前系统日期，只读
 */
 VAR sys_date = 0
