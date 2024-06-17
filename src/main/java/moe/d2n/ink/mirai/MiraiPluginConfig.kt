@@ -7,6 +7,9 @@ import net.mamoe.mirai.console.data.value
 object MiraiPluginConfig : AutoSavePluginConfig("InkEngine") {
     @ValueDescription("编译后的 Ink 文件")
     val mainFile: String by value("main.ink.json")
+    
+    @ValueDescription("启用的群列表")
+    val enableGroup: List<Long> by value()
 
     @ValueDescription("默认触发指令")
     val command: String by value("/ink")
