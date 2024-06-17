@@ -6,6 +6,8 @@ import net.mamoe.mirai.console.plugin.jvm.JavaPlugin;
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescriptionBuilder;
 import net.mamoe.mirai.contact.Member;
 import net.mamoe.mirai.contact.NormalMember;
+import net.mamoe.mirai.event.Event;
+import net.mamoe.mirai.event.EventChannel;
 import net.mamoe.mirai.event.GlobalEventChannel;
 import net.mamoe.mirai.event.events.GroupMessageEvent;
 import net.mamoe.mirai.message.data.*;
@@ -38,7 +40,7 @@ public class InkEngine extends JavaPlugin {
         savesPath = getDataFolderPath().resolve("saves");
     }
 
-    protected boolean checkSDKVersion(Story story){
+    protected boolean checkSDKVersion(Story story) {
         int version = (Integer) story.getVariablesState().get("SDK_VERSION");
         boolean flag = version <= INK_SDK_VERSION;
         if (flag) {
@@ -90,7 +92,10 @@ public class InkEngine extends JavaPlugin {
                 "                                             ▄█▄▄▄▄▀                       \n" +
                 "                                                                           " +
                 "v" + VERSION + "\n");
-        GlobalEventChannel.INSTANCE.subscribeAlways(GroupMessageEvent.class, this::onGroupMessage);
+        GlobalEventChannel instance = GlobalEventChannel.INSTANCE;
+        instance.filterIsInstance(GroupMessageEvent.class)
+                .filter(it -> config.getEnableGroup().contains(it.getGroup().getId()))
+                .subscribeAlways(GroupMessageEvent.class, this::onGroupMessage);
     }
 
     private void onGroupMessage(GroupMessageEvent e) {
@@ -111,6 +116,7 @@ public class InkEngine extends JavaPlugin {
 
         boolean hasChoose = false;
         int chooseNum = 0;
+
         At at = null;
         for (SingleMessage singleMessage : e.getMessage()) {
             if (singleMessage instanceof At) {
@@ -124,15 +130,18 @@ public class InkEngine extends JavaPlugin {
                 }
             }
         }
+
         NormalMember chooseTarget = null;
         if (at != null) {
             chooseTarget = e.getGroup().get(at.getTarget());
             hasChoose = chooseTarget != null;
         }
+
         if (hasChoose && chooseTarget != null && chooseTarget.getId() == e.getSender().getId()) {
             e.getGroup().sendMessage("你不能选择自己");
             return;
         }
+
         if (!msg.startsWith(config.getCommand()) && !hasChoose) {
             return;
         }
