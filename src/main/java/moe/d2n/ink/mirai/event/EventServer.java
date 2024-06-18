@@ -79,7 +79,7 @@ public class EventServer {
             if (latch.await(3, TimeUnit.MINUTES)) {
                 return result.get();
             } else {
-                InkEngine.Log().debug("获取用户下一条消息超时");
+                InkEngine.log().debug("获取用户下一条消息超时");
                 return null;
             }
         } catch (InterruptedException e) {
