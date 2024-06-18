@@ -5,6 +5,8 @@ import moe.d2n.ink.core.ChoiceException;
 import moe.d2n.ink.mirai.InkEngine;
 import moe.d2n.ink.mirai.MiraiPluginConfig;
 import moe.d2n.ink.mirai.MiraiStoryContext;
+import net.mamoe.mirai.contact.Group;
+import net.mamoe.mirai.contact.Member;
 import net.mamoe.mirai.contact.NormalMember;
 import net.mamoe.mirai.event.EventHandler;
 import net.mamoe.mirai.event.SimpleListenerHost;
@@ -13,6 +15,7 @@ import net.mamoe.mirai.message.data.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static moe.d2n.ink.mirai.utils.FileUtil.readStr;
 import static moe.d2n.ink.mirai.utils.InkUtil.checkSDKVersion;
@@ -52,9 +55,10 @@ public class MessageEventListener extends SimpleListenerHost {
     public void messageEntry(GroupMessageEvent event) {
 
         String msg = event.getMessage().contentToString();
+        Group group = event.getSubject();
+        Member sender = event.getSender();
 
         /*
-        todo 这里应该做的事
         1.匹配自定义指令
         2.匹配呼出信息
         后续操作通过 EventServer.nextUserMessageForGroup(x,x)持续监听
@@ -73,6 +77,23 @@ public class MessageEventListener extends SimpleListenerHost {
             }
         }
 
+        if (!msg.equals(config.getCommand())) {
+            return;
+        }
+
+        execution(event);
+
+        while (true) {
+            GroupMessageEvent e = EventServer.nextUserMessageForGroup(group, sender);
+            if (Pattern.matches("\\d", e.getMessage().contentToString())) {
+                execution(e);
+            } else {
+                return;
+            }
+        }
+    }
+
+    protected void execution(GroupMessageEvent event) {
         boolean hasChoose = false;
         int chooseNum = 0;
 
@@ -118,8 +139,6 @@ public class MessageEventListener extends SimpleListenerHost {
         } catch (ChoiceException ex) {
             event.getGroup().sendMessage(ex.getMessage());
         }
-
     }
-
 
 }
