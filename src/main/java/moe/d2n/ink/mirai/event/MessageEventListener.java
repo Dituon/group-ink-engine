@@ -122,7 +122,7 @@ public class MessageEventListener extends SimpleListenerHost {
             return;
         }
 
-        if (!msg.startsWith(config.getCommand()) && !hasChoose) {
+        if (!hasChoose) {
             return;
         }
 
