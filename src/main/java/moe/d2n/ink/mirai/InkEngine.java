@@ -1,18 +1,13 @@
 package moe.d2n.ink.mirai;
 
 import com.bladecoder.ink.runtime.Story;
-import moe.d2n.ink.core.ChoiceException;
 import moe.d2n.ink.mirai.event.EventServer;
+import moe.d2n.ink.mirai.utils.InkUtil;
 import net.mamoe.mirai.console.plugin.jvm.JavaPlugin;
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescriptionBuilder;
 import net.mamoe.mirai.contact.Member;
-import net.mamoe.mirai.contact.NormalMember;
-import net.mamoe.mirai.event.GlobalEventChannel;
-import net.mamoe.mirai.event.events.GroupMessageEvent;
-import net.mamoe.mirai.message.data.*;
 import net.mamoe.mirai.utils.MiraiLogger;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -21,6 +16,8 @@ import java.nio.file.StandardCopyOption;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
+
+import static moe.d2n.ink.mirai.utils.FileUtil.readStr;
 
 public class InkEngine extends JavaPlugin {
     public static final InkEngine INSTANCE = new InkEngine();
@@ -40,16 +37,6 @@ public class InkEngine extends JavaPlugin {
         savesPath = getDataFolderPath().resolve("saves");
     }
 
-    protected boolean checkSDKVersion(Story story) {
-        int version = (Integer) story.getVariablesState().get("SDK_VERSION");
-        boolean flag = version <= INK_SDK_VERSION;
-        if (flag) {
-            getLogger().warning("当前插件版本过低，请更新至最新版本");
-            getLogger().warning("当前插件支持的SDK版本： " + INK_SDK_VERSION + " ，故事SDK版本： " + version);
-        }
-        return flag;
-    }
-
     @Override
     public void onEnable() {
         reloadPluginConfig(MiraiPluginConfig.INSTANCE);
@@ -63,7 +50,7 @@ public class InkEngine extends JavaPlugin {
                 }
             }
             story = new Story(readStr(mainFile));
-            checkSDKVersion(story);
+            InkUtil.checkSDKVersion(story);
         } catch (IOException e) {
             getLogger().error("读取文件失败");
             throw new RuntimeException(e);
@@ -93,88 +80,9 @@ public class InkEngine extends JavaPlugin {
                 "                                                                           " +
                 "v" + VERSION + "\n");
 
-        /*
-         * 逻辑替换过去后 将下面两个注册启用
-         */
-//        EventServer.loadingServer();
-//        EventServer.registerEvent();
 
-        //然后将这一段消息注册去掉
-        GlobalEventChannel instance = GlobalEventChannel.INSTANCE;
-        instance.filterIsInstance(GroupMessageEvent.class)
-                .filter(it -> config.getEnableGroup().contains(it.getGroup().getId()))
-                .subscribeAlways(GroupMessageEvent.class, this::onGroupMessage);
-    }
-
-    private void onGroupMessage(GroupMessageEvent e) {
-        String msg = e.getMessage().contentToString();
-
-        if (config.getDevMode() && msg.equals("/reload")) {
-            try {
-                story = new Story(readStr(
-                        getDataFolderPath().resolve("data").resolve(config.getMainFile()).toFile()
-                ));
-                checkSDKVersion(story);
-                groupStoryMap = new HashMap<>();
-                e.getGroup().sendMessage("重载成功");
-                return;
-            } catch (Exception ignored) {
-            }
-        }
-
-        boolean hasChoose = false;
-        int chooseNum = 0;
-
-        At at = null;
-        for (SingleMessage singleMessage : e.getMessage()) {
-            if (singleMessage instanceof At) {
-                at = (At) singleMessage;
-            } else if (singleMessage instanceof PlainText) {
-                var text = (PlainText) singleMessage;
-                try {
-                    chooseNum = Integer.parseInt(text.contentToString().trim());
-                    hasChoose = true;
-                } catch (NumberFormatException ignored) {
-                }
-            }
-        }
-
-        NormalMember chooseTarget = null;
-        if (at != null) {
-            chooseTarget = e.getGroup().get(at.getTarget());
-            hasChoose = chooseTarget != null;
-        }
-
-        if (hasChoose && chooseTarget != null && chooseTarget.getId() == e.getSender().getId()) {
-            e.getGroup().sendMessage("你不能选择自己");
-            return;
-        }
-
-        if (!msg.startsWith(config.getCommand()) && !hasChoose) {
-            return;
-        }
-
-        var memberStory = getContext(e.getSender());
-
-        try {
-            if (memberStory.choose(chooseNum, chooseTarget)) {
-                var smsg = memberStory.getMessage();
-                var mb = new MessageChainBuilder();
-                mb.append(MessageSource.quote(e.getMessage()));
-                smsg.forEach(mb::append);
-                e.getGroup().sendMessage(mb.asMessageChain());
-            }
-        } catch (ChoiceException ex) {
-            e.getGroup().sendMessage(ex.getMessage());
-        }
-    }
-
-    public static String readStr(File file) throws IOException {
-        var result = Files.readString(file.toPath(), StandardCharsets.UTF_8);
-        if (result.startsWith("\uFEFF")) {
-            result = result.substring(1);
-        }
-        return result;
+        EventServer.loadingServer();
+        EventServer.registerEvent();
     }
 
     public Story cloneStory() {
@@ -280,7 +188,7 @@ public class InkEngine extends JavaPlugin {
         }));
     }
 
-    public static MiraiLogger Log() {
+    public static MiraiLogger log() {
         return INSTANCE.getLogger();
     }
 
