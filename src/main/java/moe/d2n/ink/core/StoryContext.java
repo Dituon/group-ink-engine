@@ -63,7 +63,7 @@ public class StoryContext {
                 var c = choices.get(index).getText();
                 if (c.contains("$member")) {
                     prevHasMemberChoicesIndexes.add(index);
-                    c = c.replace("$member", "（@ 某人以选择）");
+                    c = c.replace("$member", "（选项+@ 某人以选择）");
                 }
                 sb.append('\n').append(index + 1).append(". ").append(c);
             }

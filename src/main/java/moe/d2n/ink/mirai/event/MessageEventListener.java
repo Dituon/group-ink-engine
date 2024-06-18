@@ -15,6 +15,7 @@ import net.mamoe.mirai.message.data.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static moe.d2n.ink.mirai.utils.FileUtil.readStr;
@@ -85,7 +86,7 @@ public class MessageEventListener extends SimpleListenerHost {
 
         while (true) {
             GroupMessageEvent e = EventServer.nextUserMessageForGroup(group, sender);
-            if (Pattern.matches("\\d", e.getMessage().contentToString())) {
+            if (Pattern.compile("\\d").matcher(e.getMessage().contentToString()).find()) {
                 execution(e);
             } else {
                 return;
@@ -94,47 +95,46 @@ public class MessageEventListener extends SimpleListenerHost {
     }
 
     protected void execution(GroupMessageEvent event) {
-        boolean hasChoose = false;
+        MessageChain message = event.getMessage();
+        String content = message.contentToString();
+        Member sender = event.getSender();
+
         int chooseNum = 0;
 
-        At at = null;
-        for (SingleMessage singleMessage : event.getMessage()) {
+        Pattern compile = Pattern.compile("^\\d");
+        Matcher matcher = compile.matcher(content);
+
+        if (matcher.find()) {
+            chooseNum = Integer.parseInt(matcher.group());
+        }
+
+        At at;
+        NormalMember chooseTarget = null;
+
+        for (SingleMessage singleMessage : message) {
             if (singleMessage instanceof At) {
                 at = (At) singleMessage;
-            } else if (singleMessage instanceof PlainText) {
-                var text = (PlainText) singleMessage;
-                try {
-                    chooseNum = Integer.parseInt(text.contentToString().trim());
-                    hasChoose = true;
-                } catch (NumberFormatException ignored) {
+                chooseTarget = event.getGroup().get(at.getTarget());
+                if (chooseTarget == null) {
+                    return;
+                } else {
+                    if (chooseTarget.getId() == sender.getId()) {
+                        event.getGroup().sendMessage("你不能选择自己");
+                        return;
+                    }
                 }
             }
         }
 
-        NormalMember chooseTarget = null;
-        if (at != null) {
-            chooseTarget = event.getGroup().get(at.getTarget());
-            hasChoose = chooseTarget != null;
-        }
-
-        if (hasChoose && chooseTarget != null && chooseTarget.getId() == event.getSender().getId()) {
-            event.getGroup().sendMessage("你不能选择自己");
-            return;
-        }
-
-        if (!hasChoose) {
-            return;
-        }
-
-        var memberStory = inkEngine.getContext(event.getSender());
+        var memberStory = inkEngine.getContext(sender);
 
         try {
+            inkEngine.getLogger().info(String.format("%s -> %s", sender.getId(), chooseNum));
             if (memberStory.choose(chooseNum, chooseTarget)) {
-                var smsg = memberStory.getMessage();
                 var mb = new MessageChainBuilder();
-                mb.append(MessageSource.quote(event.getMessage()));
-                smsg.forEach(mb::append);
-                event.getGroup().sendMessage(mb.asMessageChain());
+                mb.append(MessageSource.quote(message));
+                mb.append(memberStory.getMessage());
+                event.getGroup().sendMessage(mb.build());
             }
         } catch (ChoiceException ex) {
             event.getGroup().sendMessage(ex.getMessage());
