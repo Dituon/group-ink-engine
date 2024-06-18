@@ -2,15 +2,15 @@ package moe.d2n.ink.mirai;
 
 import com.bladecoder.ink.runtime.Story;
 import moe.d2n.ink.core.ChoiceException;
+import moe.d2n.ink.mirai.event.EventServer;
 import net.mamoe.mirai.console.plugin.jvm.JavaPlugin;
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescriptionBuilder;
 import net.mamoe.mirai.contact.Member;
 import net.mamoe.mirai.contact.NormalMember;
-import net.mamoe.mirai.event.Event;
-import net.mamoe.mirai.event.EventChannel;
 import net.mamoe.mirai.event.GlobalEventChannel;
 import net.mamoe.mirai.event.events.GroupMessageEvent;
 import net.mamoe.mirai.message.data.*;
+import net.mamoe.mirai.utils.MiraiLogger;
 
 import java.io.File;
 import java.io.IOException;
@@ -92,6 +92,14 @@ public class InkEngine extends JavaPlugin {
                 "                                             ▄█▄▄▄▄▀                       \n" +
                 "                                                                           " +
                 "v" + VERSION + "\n");
+
+        /*
+         * 逻辑替换过去后 将下面两个注册启用
+         */
+//        EventServer.loadingServer();
+//        EventServer.registerEvent();
+
+        //然后将这一段消息注册去掉
         GlobalEventChannel instance = GlobalEventChannel.INSTANCE;
         instance.filterIsInstance(GroupMessageEvent.class)
                 .filter(it -> config.getEnableGroup().contains(it.getGroup().getId()))
@@ -270,6 +278,10 @@ public class InkEngine extends JavaPlugin {
                 getLogger().warning("保存失败", ex);
             }
         }));
+    }
+
+    public static MiraiLogger Log() {
+        return INSTANCE.getLogger();
     }
 
     @Override
