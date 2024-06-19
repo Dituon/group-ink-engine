@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "moe.d2n"
-version = "0.1.0"
+version = "1.0.0"
 
 sourceSets {
     create("mirai") {

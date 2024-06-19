@@ -23,7 +23,7 @@ import static moe.d2n.ink.mirai.utils.FileUtil.readStr;
 
 public class InkEngine extends JavaPlugin {
     public static final InkEngine INSTANCE = new InkEngine();
-    public static final String VERSION = "0.1.0";
+    public static final String VERSION = "1.0.0";
     public static final int INK_SDK_VERSION = 1;
     public Story story;
     public Map<Long, Map<Long, MiraiStoryContext>> groupStoryMap = new HashMap<>();
