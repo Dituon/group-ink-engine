@@ -5,6 +5,7 @@ import moe.d2n.ink.core.ChoiceException;
 import moe.d2n.ink.mirai.InkEngine;
 import moe.d2n.ink.mirai.MiraiPluginConfig;
 import moe.d2n.ink.mirai.MiraiStoryContext;
+import moe.d2n.ink.mirai.TriggerType;
 import net.mamoe.mirai.contact.Group;
 import net.mamoe.mirai.contact.Member;
 import net.mamoe.mirai.contact.NormalMember;
@@ -55,7 +56,8 @@ public class MessageEventListener extends SimpleListenerHost {
     @EventHandler
     public void messageEntry(GroupMessageEvent event) {
 
-        String msg = event.getMessage().contentToString();
+        MessageChain message = event.getMessage();
+        String msg = message.contentToString();
         Group group = event.getSubject();
         Member sender = event.getSender();
 
@@ -78,35 +80,46 @@ public class MessageEventListener extends SimpleListenerHost {
             }
         }
 
-        if (!msg.equals(config.getCommand())) {
-            return;
+        if (msg.equals(config.getCommand())) {
+            execution(event);
         }
 
-        execution(event);
-
-        while (true) {
-            GroupMessageEvent e = EventServer.nextUserMessageForGroup(group, sender);
-            if (Pattern.compile("\\d").matcher(e.getMessage().contentToString()).find()) {
-                execution(e);
+        if (config.getTriggerType() == TriggerType.QUOTE) {
+            if (!message.contains(QuoteReply.Key)) {
+                return;
+            }
+            QuoteReply quoteReply = message.get(QuoteReply.Key);
+            MessageSource source;
+            if (quoteReply != null) {
+                source = quoteReply.getSource();
             } else {
                 return;
             }
+            if (source.getBotId() == source.getFromId()) {
+                if (Pattern.compile("\\d").matcher(event.getMessage().contentToString()).find()) {
+                    execution(event);
+                }
+            }
         }
+
+        if (config.getTriggerType() == TriggerType.AWAKEN) {
+            while (true) {
+                GroupMessageEvent e = EventServer.nextUserMessageForGroup(group, sender);
+                if (Pattern.compile("\\d").matcher(e.getMessage().contentToString()).find()) {
+                    execution(e);
+                } else {
+                    return;
+                }
+            }
+        }
+
     }
 
     protected void execution(GroupMessageEvent event) {
         MessageChain message = event.getMessage();
-        String content = message.contentToString();
         Member sender = event.getSender();
 
         int chooseNum = 0;
-
-        Pattern compile = Pattern.compile("^\\d");
-        Matcher matcher = compile.matcher(content);
-
-        if (matcher.find()) {
-            chooseNum = Integer.parseInt(matcher.group());
-        }
 
         At at;
         NormalMember chooseTarget = null;
@@ -118,10 +131,21 @@ public class MessageEventListener extends SimpleListenerHost {
                 if (chooseTarget == null) {
                     return;
                 } else {
+                    if (chooseTarget.getId() == event.getBot().getId()) {
+                        chooseTarget = null;
+                        continue;
+                    }
                     if (chooseTarget.getId() == sender.getId()) {
                         event.getGroup().sendMessage("你不能选择自己");
                         return;
                     }
+                }
+            } else {
+                Pattern compile = Pattern.compile("^\\d");
+                Matcher matcher = compile.matcher(singleMessage.contentToString().trim());
+
+                if (matcher.find()) {
+                    chooseNum = Integer.parseInt(matcher.group());
                 }
             }
         }
