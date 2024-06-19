@@ -82,6 +82,16 @@ public class MessageEventListener extends SimpleListenerHost {
 
         if (msg.equals(config.getCommand())) {
             execution(event);
+            if (config.getTriggerType() == TriggerType.AWAKEN) {
+                while (true) {
+                    GroupMessageEvent e = EventServer.nextUserMessageForGroup(group, sender);
+                    if (e != null && Pattern.compile("\\d").matcher(e.getMessage().contentToString()).find()) {
+                        execution(e);
+                    } else {
+                        return;
+                    }
+                }
+            }
         }
 
         if (config.getTriggerType() == TriggerType.QUOTE) {
@@ -98,17 +108,6 @@ public class MessageEventListener extends SimpleListenerHost {
             if (source.getBotId() == source.getFromId()) {
                 if (Pattern.compile("\\d").matcher(event.getMessage().contentToString()).find()) {
                     execution(event);
-                }
-            }
-        }
-
-        if (config.getTriggerType() == TriggerType.AWAKEN) {
-            while (true) {
-                GroupMessageEvent e = EventServer.nextUserMessageForGroup(group, sender);
-                if (Pattern.compile("\\d").matcher(e.getMessage().contentToString()).find()) {
-                    execution(e);
-                } else {
-                    return;
                 }
             }
         }
