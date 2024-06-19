@@ -5,6 +5,9 @@ import moe.d2n.ink.core.ChoiceException;
 import moe.d2n.ink.mirai.InkEngine;
 import moe.d2n.ink.mirai.MiraiPluginConfig;
 import moe.d2n.ink.mirai.MiraiStoryContext;
+import moe.d2n.ink.mirai.TriggerType;
+import net.mamoe.mirai.contact.Group;
+import net.mamoe.mirai.contact.Member;
 import net.mamoe.mirai.contact.NormalMember;
 import net.mamoe.mirai.event.EventHandler;
 import net.mamoe.mirai.event.SimpleListenerHost;
@@ -13,6 +16,8 @@ import net.mamoe.mirai.message.data.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static moe.d2n.ink.mirai.utils.FileUtil.readStr;
 import static moe.d2n.ink.mirai.utils.InkUtil.checkSDKVersion;
@@ -51,10 +56,12 @@ public class MessageEventListener extends SimpleListenerHost {
     @EventHandler
     public void messageEntry(GroupMessageEvent event) {
 
-        String msg = event.getMessage().contentToString();
+        MessageChain message = event.getMessage();
+        String msg = message.contentToString();
+        Group group = event.getSubject();
+        Member sender = event.getSender();
 
         /*
-        todo 这里应该做的事
         1.匹配自定义指令
         2.匹配呼出信息
         后续操作通过 EventServer.nextUserMessageForGroup(x,x)持续监听
@@ -73,53 +80,89 @@ public class MessageEventListener extends SimpleListenerHost {
             }
         }
 
-        boolean hasChoose = false;
-        int chooseNum = 0;
+        if (msg.equals(config.getCommand())) {
+            execution(event);
+        }
 
-        At at = null;
-        for (SingleMessage singleMessage : event.getMessage()) {
-            if (singleMessage instanceof At) {
-                at = (At) singleMessage;
-            } else if (singleMessage instanceof PlainText) {
-                var text = (PlainText) singleMessage;
-                try {
-                    chooseNum = Integer.parseInt(text.contentToString().trim());
-                    hasChoose = true;
-                } catch (NumberFormatException ignored) {
+        if (config.getTriggerType() == TriggerType.QUOTE) {
+            if (!message.contains(QuoteReply.Key)) {
+                return;
+            }
+            QuoteReply quoteReply = message.get(QuoteReply.Key);
+            MessageSource source;
+            if (quoteReply != null) {
+                source = quoteReply.getSource();
+            } else {
+                return;
+            }
+            if (source.getBotId() == source.getFromId()) {
+                if (Pattern.compile("\\d").matcher(event.getMessage().contentToString()).find()) {
+                    execution(event);
                 }
             }
         }
 
-        NormalMember chooseTarget = null;
-        if (at != null) {
-            chooseTarget = event.getGroup().get(at.getTarget());
-            hasChoose = chooseTarget != null;
-        }
-
-        if (hasChoose && chooseTarget != null && chooseTarget.getId() == event.getSender().getId()) {
-            event.getGroup().sendMessage("你不能选择自己");
-            return;
-        }
-
-        if (!msg.startsWith(config.getCommand()) && !hasChoose) {
-            return;
-        }
-
-        var memberStory = inkEngine.getContext(event.getSender());
-
-        try {
-            if (memberStory.choose(chooseNum, chooseTarget)) {
-                var smsg = memberStory.getMessage();
-                var mb = new MessageChainBuilder();
-                mb.append(MessageSource.quote(event.getMessage()));
-                smsg.forEach(mb::append);
-                event.getGroup().sendMessage(mb.asMessageChain());
+        if (config.getTriggerType() == TriggerType.AWAKEN) {
+            while (true) {
+                GroupMessageEvent e = EventServer.nextUserMessageForGroup(group, sender);
+                if (Pattern.compile("\\d").matcher(e.getMessage().contentToString()).find()) {
+                    execution(e);
+                } else {
+                    return;
+                }
             }
-        } catch (ChoiceException ex) {
-            event.getGroup().sendMessage(ex.getMessage());
         }
 
     }
 
+    protected void execution(GroupMessageEvent event) {
+        MessageChain message = event.getMessage();
+        Member sender = event.getSender();
+
+        int chooseNum = 0;
+
+        At at;
+        NormalMember chooseTarget = null;
+
+        for (SingleMessage singleMessage : message) {
+            if (singleMessage instanceof At) {
+                at = (At) singleMessage;
+                chooseTarget = event.getGroup().get(at.getTarget());
+                if (chooseTarget == null) {
+                    return;
+                } else {
+                    if (chooseTarget.getId() == event.getBot().getId()) {
+                        chooseTarget = null;
+                        continue;
+                    }
+                    if (chooseTarget.getId() == sender.getId()) {
+                        event.getGroup().sendMessage("你不能选择自己");
+                        return;
+                    }
+                }
+            } else {
+                Pattern compile = Pattern.compile("^\\d");
+                Matcher matcher = compile.matcher(singleMessage.contentToString().trim());
+
+                if (matcher.find()) {
+                    chooseNum = Integer.parseInt(matcher.group());
+                }
+            }
+        }
+
+        var memberStory = inkEngine.getContext(sender);
+
+        try {
+            inkEngine.getLogger().info(String.format("%s -> %s", sender.getId(), chooseNum));
+            if (memberStory.choose(chooseNum, chooseTarget)) {
+                var mb = new MessageChainBuilder();
+                mb.append(MessageSource.quote(message));
+                mb.append(memberStory.getMessage());
+                event.getGroup().sendMessage(mb.build());
+            }
+        } catch (ChoiceException ex) {
+            event.getGroup().sendMessage(ex.getMessage());
+        }
+    }
 
 }

@@ -1,5 +1,6 @@
 package moe.d2n.ink.mirai;
 
+
 import com.bladecoder.ink.runtime.Story;
 import moe.d2n.ink.mirai.event.EventServer;
 import moe.d2n.ink.mirai.utils.InkUtil;
@@ -7,6 +8,7 @@ import net.mamoe.mirai.console.plugin.jvm.JavaPlugin;
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescriptionBuilder;
 import net.mamoe.mirai.contact.Member;
 import net.mamoe.mirai.utils.MiraiLogger;
+
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -43,8 +45,11 @@ public class InkEngine extends JavaPlugin {
         try {
             var mainFile = getDataFolderPath().resolve("data").resolve(config.getMainFile()).toFile();
             if (!mainFile.exists()) {
-                var defaultMainFile = "/main.ink.json";
-                try (var in = InkEngine.class.getResourceAsStream(defaultMainFile)) {
+                if (!mainFile.mkdirs()) {
+                    throw new RuntimeException("故事路径创建失败，请手动创建!");
+                }
+                var defaultMainFile = "main.ink.json";
+                try (var in = getResourceAsStream(defaultMainFile)) {
                     assert in != null;
                     Files.copy(in, mainFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 }
