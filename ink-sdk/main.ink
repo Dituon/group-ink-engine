@@ -10,8 +10,10 @@ INCLUDE group_sdk.ink
 
 系统日期: {sys_date}
 
- + [调试信息] -> info
-    
++ [调试信息] -> info
+
++ [测试目标选取$member] -> test_select_target
+
 ===info===
 
 group: {group}
@@ -23,3 +25,12 @@ has_target: {has_target}
 target_id: {target_id}
 
 + [返回]  -> main
+
+===test_select_target===
+
+has_target: {has_target}
+
+target_id: {target_id}
+
++ [返回]  -> main
+
